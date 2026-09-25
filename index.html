@@ -30,7 +30,9 @@
     .glow-red {
       box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.4);
     }
-    /* Chặn hiệu ứng cuộn mượt bị trễ trên di động */
+    .glow-blue {
+      box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.25);
+    }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -38,12 +40,17 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    /* Hiệu ứng xoay kim đồng hồ */
+    .clock-hand {
+      transform-origin: 100px 100px;
+      transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-12 antialiased selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24 antialiased selection:bg-blue-500 selection:text-white">
 
-  <!-- Header -->
-  <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-3 py-3 mb-6">
+  <!-- Header Header Top Bar -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 py-3 mb-4">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -51,24 +58,21 @@
         </div>
         <div>
           <h1 class="font-bold text-sm tracking-tight leading-tight">Task Alarm</h1>
-          <p id="liveClock" class="text-[10px] text-slate-400 font-medium">--:--:--</p>
+          <p id="liveClockText" class="text-[10px] text-slate-400 font-medium">--:--:--</p>
         </div>
       </div>
       
-      <!-- Control Buttons -->
+      <!-- Quick Controls -->
       <div class="flex items-center gap-1.5">
-        <!-- Test Notification Button -->
         <button onclick="testNotification()" class="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition flex items-center gap-1 text-xs font-medium border border-amber-500/30 active:scale-95">
           <i data-lucide="send" class="w-3.5 h-3.5"></i>
           <span class="text-[11px]">Thử TB</span>
         </button>
 
-        <!-- Notification Toggle -->
         <button id="notifToggleBtn" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
           <i id="notifIcon" data-lucide="bell-off" class="w-3.5 h-3.5"></i>
         </button>
 
-        <!-- Sound Alert Toggle -->
         <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
           <i id="soundIcon" data-lucide="volume-x" class="w-3.5 h-3.5"></i>
         </button>
@@ -76,122 +80,234 @@
     </div>
   </header>
 
-  <main class="max-w-md mx-auto px-4 space-y-5">
+  <!-- Main Container -->
+  <main class="max-w-md mx-auto px-4">
 
-    <!-- Status Overview Pills -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
-          <i data-lucide="alert-circle" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <span class="text-xs text-slate-400 block font-medium">Quá hạn</span>
-          <span id="statOverdue" class="text-xl font-bold text-rose-400">0</span>
+    <!-- TAB 1: CÔNG VIỆC GẦN NHẤT -->
+    <div id="tab1Content" class="space-y-5">
+      
+      <!-- Đồng hồ Analog mô phỏng ứng dụng Báo thức -->
+      <div class="glass-card p-5 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden glow-blue">
+        <svg width="190" height="190" viewBox="0 0 200 200" class="drop-shadow-2xl">
+          <!-- Mặt đồng hồ -->
+          <circle cx="100" cy="100" r="92" fill="#0f172a" stroke="#334155" stroke-width="4"/>
+          <circle cx="100" cy="100" r="86" fill="none" stroke="#1e293b" stroke-width="2"/>
+          
+          <!-- Vạch giờ -->
+          <g stroke="#64748b" stroke-linecap="round">
+            <line x1="100" y1="18" x2="100" y2="26" stroke-width="3"/>
+            <line x1="100" y1="174" x2="100" y2="182" stroke-width="3"/>
+            <line x1="18" y1="100" x2="26" y2="100" stroke-width="3"/>
+            <line x1="174" y1="100" x2="182" y2="100" stroke-width="3"/>
+            
+            <line x1="141" y1="29" x2="137" y2="36" stroke-width="2"/>
+            <line x1="171" y1="59" x2="164" y2="63" stroke-width="2"/>
+            <line x1="171" y1="141" x2="164" y2="137" stroke-width="2"/>
+            <line x1="141" y1="171" x2="137" y2="164" stroke-width="2"/>
+            <line x1="59" y1="171" x2="63" y2="164" stroke-width="2"/>
+            <line x1="29" y1="141" x2="36" y2="137" stroke-width="2"/>
+            <line x1="29" y1="59" x2="36" y2="63" stroke-width="2"/>
+            <line x1="59" y1="29" x2="63" y2="36" stroke-width="2"/>
+          </g>
+
+          <!-- Kim giờ -->
+          <line id="hourHand" x1="100" y1="100" x2="100" y2="55" stroke="#f8fafc" stroke-width="5" stroke-linecap="round" class="clock-hand"/>
+          <!-- Kim phút -->
+          <line id="minuteHand" x1="100" y1="100" x2="100" y2="35" stroke="#cbd5e1" stroke-width="3.5" stroke-linecap="round" class="clock-hand"/>
+          <!-- Kim giây -->
+          <line id="secondHand" x1="100" y1="100" x2="100" y2="28" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" class="clock-hand"/>
+          <!-- Tâm đồng hồ -->
+          <circle cx="100" cy="100" r="5" fill="#3b82f6" stroke="#f8fafc" stroke-width="2"/>
+        </svg>
+
+        <!-- Dòng đếm ngược/Thông báo hạn công việc -->
+        <div id="countdownText" class="mt-4 text-center font-semibold text-sm text-blue-400 min-h-[24px]">
+          Đang tải thông tin...
         </div>
       </div>
 
-      <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
-          <i data-lucide="clock" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <span class="text-xs text-slate-400 block font-medium">Đang chờ</span>
-          <span id="statPending" class="text-xl font-bold text-blue-400">0</span>
+      <!-- Khung Công Việc Gần Nhất -->
+      <div class="space-y-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between px-1">
+          <span class="flex items-center gap-1.5"><i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Công việc cần làm tiếp theo</span>
+          <span class="text-[10px] text-slate-500 font-normal">Ưu tiên số 1</span>
+        </h2>
+
+        <div id="nextTaskCard">
+          <!-- Task gần nhất render tại đây -->
         </div>
       </div>
-    </div>
 
-    <!-- Quick Add Form Card -->
-    <div class="glass-card p-4 rounded-2xl shadow-xl space-y-3">
-      <div class="flex items-center justify-between">
+      <!-- Thêm Nhanh Công Việc -->
+      <div class="glass-card p-4 rounded-2xl shadow-xl space-y-3">
         <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <i data-lucide="plus-circle" class="w-4 h-4 text-blue-400"></i> Thêm việc cần làm
         </h2>
+        
+        <form id="addFormTab1" class="space-y-3">
+          <input type="text" id="title1" placeholder="Ví dụ: Họp ban giám đốc..." required 
+                 class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+          
+          <div class="flex gap-2">
+            <input type="datetime-local" id="dueAt1" required 
+                   class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+            <button type="submit" id="submitBtn1" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1">
+              <i data-lucide="check" class="w-4 h-4"></i> Lưu
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+            <span class="text-[11px] text-slate-500 whitespace-nowrap">Nhanh:</span>
+            <button type="button" onclick="setQuickTimeTab1(15)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+15 Phút</button>
+            <button type="button" onclick="setQuickTimeTab1(60)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+1 Giờ</button>
+            <button type="button" onclick="setQuickTimeTab1(1440)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">Sáng mai (8h)</button>
+          </div>
+        </form>
       </div>
 
-      <form id="addForm" class="space-y-3">
-        <div>
-          <input type="text" id="title" placeholder="Ví dụ: Ký hồ sơ trình Sở..." required 
-                 class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition">
-        </div>
-
-        <div class="flex gap-2">
-          <input type="datetime-local" id="dueAt" required 
-                 class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition">
-          <button type="submit" id="submitBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition active:scale-95 flex items-center gap-1">
-            <i data-lucide="check" class="w-4 h-4"></i> Lưu
-          </button>
-        </div>
-
-        <!-- Quick Time Presets -->
-        <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
-          <span class="text-[11px] text-slate-500 whitespace-nowrap">Nhanh:</span>
-          <button type="button" onclick="setQuickTime(15)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+15 Phút</button>
-          <button type="button" onclick="setQuickTime(60)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+1 Giờ</button>
-          <button type="button" onclick="setQuickTime(1440)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">Sáng mai (8h)</button>
-        </div>
-      </form>
     </div>
 
-    <!-- Task List Section -->
-    <div class="space-y-3">
+    <!-- TAB 2: DANH MỤC TẤT CẢ CÔNG VIỆC -->
+    <div id="tab2Content" class="space-y-4 hidden">
+
+      <!-- Status Overview Pills -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
+            <i data-lucide="alert-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Quá hạn</span>
+            <span id="statOverdue" class="text-xl font-bold text-rose-400">0</span>
+          </div>
+        </div>
+
+        <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+            <i data-lucide="clock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Đang chờ</span>
+            <span id="statPending" class="text-xl font-bold text-blue-400">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Danh Sách -->
       <div class="flex items-center justify-between px-1">
         <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <i data-lucide="list-todo" class="w-4 h-4 text-slate-400"></i> Danh sách nhắc hẹn
+          <i data-lucide="list-todo" class="w-4 h-4 text-slate-400"></i> Danh mục công việc
         </h2>
         <button onclick="loadTasks()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
           <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Làm mới
         </button>
       </div>
 
+      <!-- Danh Sách Công Việc -->
       <div id="taskList" class="space-y-2.5">
-        <!-- Dynamic Tasks Render Here -->
+        <!-- Tất cả tasks render tại đây -->
       </div>
+
     </div>
 
   </main>
+
+  <!-- THANH ĐIỀU HƯỚNG BOTTOM TABS (2 TAB) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-50 glass-card border-t border-slate-800/80 px-6 py-2">
+    <div class="max-w-md mx-auto flex items-center justify-around">
+      
+      <!-- Tab 1: Công việc gần nhất -->
+      <button id="navTab1" onclick="switchTab('tab1')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-blue-400 transition">
+        <i data-lucide="alarm-clock" class="w-5 h-5"></i>
+        <span class="text-[11px] font-semibold">Gần nhất</span>
+      </button>
+
+      <!-- Tab 2: Danh mục công việc -->
+      <button id="navTab2" onclick="switchTab('tab2')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-slate-400 transition hover:text-slate-200">
+        <i data-lucide="list-checks" class="w-5 h-5"></i>
+        <span class="text-[11px] font-medium">Danh mục</span>
+      </button>
+
+    </div>
+  </nav>
 
   <script>
     let soundEnabled = false;
     let audioCtx = null;
     let notifiedTasks = new Set();
     let swRegistration = null;
-    let isSubmitting = false; // Cờ khóa chống bấm đúp trên di động
+    let isSubmitting = false;
+    let currentTab = 'tab1';
 
     // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
-        .then((reg) => {
-          swRegistration = reg;
-        })
-        .catch((err) => {
-          console.error('Lỗi Service Worker:', err);
-        });
+        .then((reg) => { swRegistration = reg; })
+        .catch((err) => { console.error('Lỗi SW:', err); });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       updateClock();
       setInterval(updateClock, 1000);
-      setDefaultDateTime();
+      setDefaultDateTime1();
       checkNotificationStatus();
-      cleanUpDuplicateTasks(); // Dọn dẹp task trùng cũ trong máy
+      cleanUpDuplicateTasks();
       loadTasks();
-      setInterval(loadTasks, 4000);
+      setInterval(loadTasks, 3000);
     });
 
     function updateClock() {
       const now = new Date();
-      document.getElementById('liveClock').innerText = now.toLocaleTimeString('vi-VN');
+      document.getElementById('liveClockText').innerText = now.toLocaleTimeString('vi-VN');
+
+      // Xoay kim đồng hồ Analog
+      const seconds = now.getSeconds();
+      const minutes = now.getMinutes();
+      const hours = now.getHours() % 12;
+
+      const secDeg = seconds * 6;
+      const minDeg = (minutes * 6) + (seconds * 0.1);
+      const hourDeg = (hours * 30) + (minutes * 0.5);
+
+      const secHand = document.getElementById('secondHand');
+      const minHand = document.getElementById('minuteHand');
+      const hrHand = document.getElementById('hourHand');
+
+      if (secHand) secHand.setAttribute('transform', `rotate(${secDeg} 100 100)`);
+      if (minHand) minHand.setAttribute('transform', `rotate(${minDeg} 100 100)`);
+      if (hrHand) hrHand.setAttribute('transform', `rotate(${hourDeg} 100 100)`);
     }
 
-    function setDefaultDateTime() {
+    // Chuyển Đổi Tab
+    function switchTab(tab) {
+      currentTab = tab;
+      const t1Content = document.getElementById('tab1Content');
+      const t2Content = document.getElementById('tab2Content');
+      const nav1 = document.getElementById('navTab1');
+      const nav2 = document.getElementById('navTab2');
+
+      if (tab === 'tab1') {
+        t1Content.classList.remove('hidden');
+        t2Content.classList.add('hidden');
+        nav1.className = "flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-blue-400 transition font-semibold";
+        nav2.className = "flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-slate-400 transition hover:text-slate-200 font-medium";
+      } else {
+        t1Content.classList.add('hidden');
+        t2Content.classList.remove('hidden');
+        nav1.className = "flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-slate-400 transition hover:text-slate-200 font-medium";
+        nav2.className = "flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-blue-400 transition font-semibold";
+      }
+      lucide.createIcons();
+    }
+
+    function setDefaultDateTime1() {
       const now = new Date(Date.now() + 30 * 60000);
       const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-      document.getElementById('dueAt').value = isoString;
+      document.getElementById('dueAt1').value = isoString;
     }
 
-    function setQuickTime(minutes) {
+    function setQuickTimeTab1(minutes) {
       let target;
       if (minutes === 1440) {
         target = new Date();
@@ -201,7 +317,7 @@
         target = new Date(Date.now() + minutes * 60000);
       }
       const localISO = new Date(target.getTime() - (target.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-      document.getElementById('dueAt').value = localISO;
+      document.getElementById('dueAt1').value = localISO;
     }
 
     async function requestNotificationPermission() {
@@ -209,22 +325,16 @@
         alert('Trình duyệt không hỗ trợ thông báo.');
         return;
       }
-      
       const permission = await Notification.requestPermission();
       checkNotificationStatus();
-
-      if (permission === 'granted') {
-        testNotification();
-      } else {
-        alert('Vui lòng bật quyền thông báo trong cài đặt trình duyệt.');
-      }
+      if (permission === 'granted') testNotification();
     }
 
     async function testNotification() {
       if (!('Notification' in window) || Notification.permission !== 'granted') {
         await requestNotificationPermission();
       } else {
-        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo đã hoạt động chuẩn xác!', 'test_' + Date.now());
+        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo hoạt động hoàn hảo!', 'test_' + Date.now());
       }
     }
 
@@ -303,14 +413,12 @@
       }
     }
 
-    // Đọc danh sách và tự động loại bỏ bản trùng (Deduplicate)
     function getLocalTasks() {
       const raw = JSON.parse(localStorage.getItem('tasks_data') || '[]');
       const unique = [];
       const seen = new Set();
 
       for (const t of raw) {
-        // Tạo khóa định danh dựa trên Tên + Thời gian
         const key = `${t.title.trim().toLowerCase()}_${t.due_at}_${t.status}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -325,8 +433,7 @@
     }
 
     function cleanUpDuplicateTasks() {
-      const unique = getLocalTasks();
-      setLocalTasks(unique);
+      setLocalTasks(getLocalTasks());
     }
 
     async function loadTasks() {
@@ -336,21 +443,111 @@
           const res = await fetch('/api/tasks');
           if (res.ok) {
             const tasks = await res.json();
-            if (Array.isArray(tasks)) {
-              setLocalTasks(tasks);
-            }
+            if (Array.isArray(tasks)) setLocalTasks(tasks);
           }
         } catch (e) {}
       }
-      renderTaskList();
+      renderUI();
     }
 
-    function renderTaskList() {
+    function renderUI() {
       const tasks = getLocalTasks().filter(t => t.status === 'pending');
+      const now = new Date().getTime();
+
+      // Sắp xếp các task theo thời gian hạn chót từ sớm nhất đến muộn nhất
+      tasks.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
+
+      // RENDER TAB 1: CÔNG VIỆC GẦN NHẤT
+      renderTab1NearestTask(tasks, now);
+
+      // RENDER TAB 2: DANH MỤC CÔNG VIỆC
+      renderTab2TaskList(tasks, now);
+    }
+
+    function renderTab1NearestTask(tasks, now) {
+      const countdownElem = document.getElementById('countdownText');
+      const nextCardElem = document.getElementById('nextTaskCard');
+
+      if (tasks.length === 0) {
+        countdownElem.innerHTML = `<span class="text-slate-400 font-normal">Chưa có công việc nào sắp tới</span>`;
+        nextCardElem.innerHTML = `
+          <div class="glass-card p-6 rounded-2xl text-center space-y-2">
+            <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
+            <p class="text-xs text-slate-400">Tất cả công việc đã hoàn thành!</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      const nearestTask = tasks[0]; // Task gần nhất
+      const due = new Date(nearestTask.due_at).getTime();
+      const diffMin = Math.round((due - now) / 60000);
+      const isOverdue = diffMin <= 0;
+
+      // Cập nhật dòng đếm ngược trên đĩa đồng hồ
+      if (isOverdue) {
+        countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${Math.abs(diffMin)} phút!</span>`;
+      } else {
+        const hrs = Math.floor(diffMin / 60);
+        const mins = diffMin % 60;
+        let timeStr = "";
+        if (hrs > 0) timeStr += `${hrs} giờ `;
+        timeStr += `${mins} phút`;
+        countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeStr}</strong></span>`;
+      }
+
+      // Kích hoạt thông báo đẩy nếu chạm mốc
+      if (isOverdue) {
+        const notifKey = `task_${nearestTask.id}_${nearestTask.due_at}`;
+        if (!notifiedTasks.has(notifKey)) {
+          notifiedTasks.add(notifKey);
+          playChime();
+          sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${nearestTask.title}" đã đến hạn!`, notifKey);
+        }
+      }
+
+      const formattedTime = new Date(nearestTask.due_at).toLocaleString('vi-VN', {
+        hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+      });
+
+      nextCardElem.innerHTML = `
+        <div class="glass-card p-4 rounded-2xl border transition-all duration-300 space-y-3 ${
+          isOverdue ? 'border-rose-500/60 bg-rose-950/20 glow-red' : 'border-blue-500/40 bg-blue-950/10'
+        }">
+          <div class="flex items-start justify-between gap-2">
+            <div class="space-y-1">
+              <h3 class="text-base font-bold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(nearestTask.title)}</h3>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-400 flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${formattedTime}
+                </span>
+                <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                  isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                }">
+                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)}p` : `Còn ${diffMin}p`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <div class="flex items-center gap-1.5">
+              <button onclick="snooze(${nearestTask.id}, 15)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/50 transition">+15p</button>
+              <button onclick="snooze(${nearestTask.id}, 60)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/50 transition">+1h</button>
+            </div>
+            <button onclick="complete(${nearestTask.id})" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-1">
+              <i data-lucide="check" class="w-4 h-4"></i> Complete
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function renderTab2TaskList(tasks, now) {
       const list = document.getElementById('taskList');
       list.innerHTML = '';
 
-      const now = new Date().getTime();
       let overdueCount = 0;
       let pendingCount = 0;
 
@@ -358,11 +555,11 @@
         list.innerHTML = `
           <div class="glass-card p-8 rounded-2xl text-center space-y-2">
             <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
-            <p class="text-xs text-slate-400">Không có công việc nào cần xử lý!</p>
+            <p class="text-xs text-slate-400">Không có công việc nào trong danh mục!</p>
           </div>`;
-        lucide.createIcons();
         document.getElementById('statOverdue').innerText = '0';
         document.getElementById('statPending').innerText = '0';
+        lucide.createIcons();
         return;
       }
 
@@ -371,26 +568,17 @@
         const diffMin = Math.round((due - now) / 60000);
         const isOverdue = diffMin <= 0;
 
-        if (isOverdue) {
-          overdueCount++;
-          const notifKey = `task_${task.id}_${task.due_at}`;
-          if (!notifiedTasks.has(notifKey)) {
-            notifiedTasks.add(notifKey);
-            playChime();
-            sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${task.title}" đã đến hạn!`, notifKey);
-          }
-        } else {
-          pendingCount++;
-        }
+        if (isOverdue) overdueCount++;
+        else pendingCount++;
+
+        const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
+          hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+        });
 
         const card = document.createElement('div');
         card.className = `glass-card p-3.5 rounded-2xl border transition-all duration-300 space-y-2.5 ${
           isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
         }`;
-
-        const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
-          hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
-        });
 
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2">
@@ -401,11 +589,9 @@
                   <i data-lucide="calendar" class="w-3 h-3"></i> ${formattedTime}
                 </span>
                 <span class="px-2 py-0.5 rounded-md font-medium ${
-                  isOverdue 
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse' 
-                    : (diffMin <= 15 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400')
+                  isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
                 }">
-                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)} phút` : `Còn ${diffMin} phút`}
+                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)}p` : `Còn ${diffMin}p`}
                 </span>
               </div>
             </div>
@@ -429,17 +615,15 @@
       lucide.createIcons();
     }
 
-    // Xử lý Form Submit - Khóa chặt chống nhân đôi Task
-    document.getElementById('addForm').addEventListener('submit', async (e) => {
+    // Xử lý Submit Form Tab 1
+    document.getElementById('addFormTab1').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      // Nếu đang trong quá trình xử lý -> Chặn tuyệt đối lần bấm thứ 2
       if (isSubmitting) return;
       isSubmitting = true;
 
-      const titleInput = document.getElementById('title');
-      const dueInput = document.getElementById('dueAt');
-      const submitBtn = document.getElementById('submitBtn');
+      const titleInput = document.getElementById('title1');
+      const dueInput = document.getElementById('dueAt1');
+      const submitBtn = document.getElementById('submitBtn1');
 
       const title = titleInput.value.trim();
       const dueAtValue = dueInput.value;
@@ -449,14 +633,11 @@
       }
 
       const due_at = new Date(dueAtValue).toISOString();
-      
-      // Khóa giao diện nút bấm
       submitBtn.disabled = true;
       submitBtn.classList.add('opacity-50', 'pointer-events-none');
 
       try {
         let savedOnline = false;
-
         if (navigator.onLine) {
           try {
             const res = await fetch('/api/tasks', {
@@ -471,15 +652,13 @@
           } catch (err) {}
         }
 
-        // Nếu không có backend online (trang tĩnh) hoặc mất mạng -> Lưu Offline
         if (!savedOnline) {
           saveOfflineTask(title, due_at);
         }
 
         titleInput.value = '';
-        setDefaultDateTime();
+        setDefaultDateTime1();
       } finally {
-        // Giải phóng cờ khóa sau 500ms để đảm bảo an toàn tuyệt đối
         setTimeout(() => {
           isSubmitting = false;
           submitBtn.disabled = false;
@@ -490,8 +669,6 @@
 
     function saveOfflineTask(title, due_at) {
       const tasks = getLocalTasks();
-      
-      // Kiểm tra trùng lặp trước khi lưu
       const exists = tasks.some(t => 
         t.title.trim().toLowerCase() === title.trim().toLowerCase() && 
         t.due_at === due_at && 
@@ -503,7 +680,7 @@
         tasks.push(newTask);
         setLocalTasks(tasks);
       }
-      renderTaskList();
+      renderUI();
     }
 
     async function snooze(id, minutes) {
@@ -513,7 +690,7 @@
         task.due_at = new Date(Date.now() + minutes * 60000).toISOString();
         setLocalTasks(tasks);
         notifiedTasks.delete(`task_${task.id}_${task.due_at}`);
-        renderTaskList();
+        renderUI();
       }
 
       if (navigator.onLine) {
@@ -534,7 +711,7 @@
       if (task) {
         task.status = 'completed';
         setLocalTasks(tasks);
-        renderTaskList();
+        renderUI();
       }
 
       if (navigator.onLine) {
@@ -552,7 +729,6 @@
     async function syncOfflineData() {
       const tasks = getLocalTasks();
       const unsynced = tasks.filter(t => t.unsynced);
-
       if (unsynced.length === 0) return;
 
       for (let t of unsynced) {
@@ -562,12 +738,9 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ title: t.title, due_at: t.due_at })
           });
-          if (res.ok) {
-            t.unsynced = false;
-          }
+          if (res.ok) t.unsynced = false;
         } catch (e) {}
       }
-
       setLocalTasks(tasks);
     }
 
