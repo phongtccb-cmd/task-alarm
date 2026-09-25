@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Task Alarm Dashboard</title>
   
-  <!-- PWA Meta Tags (Sử dụng đường dẫn tương đối để tương thích GitHub Pages) -->
+  <!-- PWA Meta Tags -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,6 +29,14 @@
     }
     .glow-red {
       box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.4);
+    }
+    /* Chặn hiệu ứng cuộn mượt bị trễ trên di động */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 </head>
@@ -148,16 +156,16 @@
     let audioCtx = null;
     let notifiedTasks = new Set();
     let swRegistration = null;
+    let isSubmitting = false; // Cờ khóa chống bấm đúp trên di động
 
-    // Đăng ký Service Worker với đường dẫn tương đối ./sw.js
+    // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
         .then((reg) => {
           swRegistration = reg;
-          console.log('Service Worker đã kết nối thành công:', reg);
         })
         .catch((err) => {
-          console.error('Lỗi đăng ký Service Worker:', err);
+          console.error('Lỗi Service Worker:', err);
         });
     }
 
@@ -167,6 +175,7 @@
       setInterval(updateClock, 1000);
       setDefaultDateTime();
       checkNotificationStatus();
+      cleanUpDuplicateTasks(); // Dọn dẹp task trùng cũ trong máy
       loadTasks();
       setInterval(loadTasks, 4000);
     });
@@ -197,7 +206,7 @@
 
     async function requestNotificationPermission() {
       if (!('Notification' in window)) {
-        alert('Điện thoại/trình duyệt này không hỗ trợ thông báo đẩy.');
+        alert('Trình duyệt không hỗ trợ thông báo.');
         return;
       }
       
@@ -207,7 +216,7 @@
       if (permission === 'granted') {
         testNotification();
       } else {
-        alert('Quyền thông báo bị từ chối. Hãy bật lại trong Cài đặt Chrome của Android.');
+        alert('Vui lòng bật quyền thông báo trong cài đặt trình duyệt.');
       }
     }
 
@@ -215,7 +224,7 @@
       if (!('Notification' in window) || Notification.permission !== 'granted') {
         await requestNotificationPermission();
       } else {
-        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo Android đã hoạt động thành công!', 'test_' + Date.now());
+        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo đã hoạt động chuẩn xác!', 'test_' + Date.now());
       }
     }
 
@@ -289,17 +298,35 @@
             new Notification(title, { body });
           }
         } catch (e) {
-          console.error("Lỗi gửi thông báo:", e);
           new Notification(title, { body });
         }
       }
     }
 
+    // Đọc danh sách và tự động loại bỏ bản trùng (Deduplicate)
     function getLocalTasks() {
-      return JSON.parse(localStorage.getItem('tasks_data') || '[]');
+      const raw = JSON.parse(localStorage.getItem('tasks_data') || '[]');
+      const unique = [];
+      const seen = new Set();
+
+      for (const t of raw) {
+        // Tạo khóa định danh dựa trên Tên + Thời gian
+        const key = `${t.title.trim().toLowerCase()}_${t.due_at}_${t.status}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(t);
+        }
+      }
+      return unique;
     }
+
     function setLocalTasks(tasks) {
       localStorage.setItem('tasks_data', JSON.stringify(tasks));
+    }
+
+    function cleanUpDuplicateTasks() {
+      const unique = getLocalTasks();
+      setLocalTasks(unique);
     }
 
     async function loadTasks() {
@@ -309,7 +336,9 @@
           const res = await fetch('/api/tasks');
           if (res.ok) {
             const tasks = await res.json();
-            setLocalTasks(tasks);
+            if (Array.isArray(tasks)) {
+              setLocalTasks(tasks);
+            }
           }
         } catch (e) {}
       }
@@ -400,52 +429,80 @@
       lucide.createIcons();
     }
 
-    // Xử lý tạo công việc mới - Đã sửa triệt để lỗi nhân đôi (Double entry)
+    // Xử lý Form Submit - Khóa chặt chống nhân đôi Task
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      // Nếu đang trong quá trình xử lý -> Chặn tuyệt đối lần bấm thứ 2
+      if (isSubmitting) return;
+      isSubmitting = true;
+
       const titleInput = document.getElementById('title');
       const dueInput = document.getElementById('dueAt');
       const submitBtn = document.getElementById('submitBtn');
 
       const title = titleInput.value.trim();
       const dueAtValue = dueInput.value;
-      if (!title || !dueAtValue) return;
+      if (!title || !dueAtValue) {
+        isSubmitting = false;
+        return;
+      }
 
       const due_at = new Date(dueAtValue).toISOString();
       
-      // Khóa nút tạo để tránh spam bấm liên tục
+      // Khóa giao diện nút bấm
       submitBtn.disabled = true;
-      submitBtn.classList.add('opacity-50');
+      submitBtn.classList.add('opacity-50', 'pointer-events-none');
 
-      if (navigator.onLine) {
-        try {
-          // Khi có mạng: gửi trực tiếp lên Server, không tạo task tạm tránh bị lặp
-          await fetch('/api/tasks', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ title, due_at })
-          });
-          await loadTasks();
-        } catch (err) {
-          // Nếu lỗi mạng giữa chừng thì lưu Offline
+      try {
+        let savedOnline = false;
+
+        if (navigator.onLine) {
+          try {
+            const res = await fetch('/api/tasks', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ title, due_at })
+            });
+            if (res.ok) {
+              savedOnline = true;
+              await loadTasks();
+            }
+          } catch (err) {}
+        }
+
+        // Nếu không có backend online (trang tĩnh) hoặc mất mạng -> Lưu Offline
+        if (!savedOnline) {
           saveOfflineTask(title, due_at);
         }
-      } else {
-        // Khi mất mạng: lưu offline duy nhất 1 lần
-        saveOfflineTask(title, due_at);
-      }
 
-      titleInput.value = '';
-      setDefaultDateTime();
-      submitBtn.disabled = false;
-      submitBtn.classList.remove('opacity-50');
+        titleInput.value = '';
+        setDefaultDateTime();
+      } finally {
+        // Giải phóng cờ khóa sau 500ms để đảm bảo an toàn tuyệt đối
+        setTimeout(() => {
+          isSubmitting = false;
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-50', 'pointer-events-none');
+        }, 500);
+      }
     });
 
     function saveOfflineTask(title, due_at) {
-      const newTask = { id: Date.now(), title, due_at, status: 'pending', unsynced: true };
       const tasks = getLocalTasks();
-      tasks.push(newTask);
-      setLocalTasks(tasks);
+      
+      // Kiểm tra trùng lặp trước khi lưu
+      const exists = tasks.some(t => 
+        t.title.trim().toLowerCase() === title.trim().toLowerCase() && 
+        t.due_at === due_at && 
+        t.status === 'pending'
+      );
+
+      if (!exists) {
+        const newTask = { id: Date.now(), title, due_at, status: 'pending', unsynced: true };
+        tasks.push(newTask);
+        setLocalTasks(tasks);
+      }
       renderTaskList();
     }
 
@@ -460,12 +517,14 @@
       }
 
       if (navigator.onLine) {
-        await fetch('/api/tasks', {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ id, action: 'snooze', minutes })
-        });
-        loadTasks();
+        try {
+          await fetch('/api/tasks', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id, action: 'snooze', minutes })
+          });
+          loadTasks();
+        } catch(e) {}
       }
     }
 
@@ -479,12 +538,14 @@
       }
 
       if (navigator.onLine) {
-        await fetch('/api/tasks', {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ id, action: 'complete' })
-        });
-        loadTasks();
+        try {
+          await fetch('/api/tasks', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id, action: 'complete' })
+          });
+          loadTasks();
+        } catch(e) {}
       }
     }
 
@@ -496,17 +557,18 @@
 
       for (let t of unsynced) {
         try {
-          await fetch('/api/tasks', {
+          const res = await fetch('/api/tasks', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ title: t.title, due_at: t.due_at })
           });
+          if (res.ok) {
+            t.unsynced = false;
+          }
         } catch (e) {}
       }
 
-      // Xóa cờ unsynced sau khi đã đồng bộ xong
-      const updatedTasks = tasks.filter(t => !t.unsynced);
-      setLocalTasks(updatedTasks);
+      setLocalTasks(tasks);
     }
 
     function escapeHtml(str) {
