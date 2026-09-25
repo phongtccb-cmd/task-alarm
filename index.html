@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Task Alarm Dashboard</title>
   
-  <!-- PWA Meta Tags -->
-  <link rel="manifest" href="/manifest.json">
+  <!-- PWA Meta Tags (Sử dụng đường dẫn tương đối để tương thích GitHub Pages) -->
+  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -34,7 +34,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-12 antialiased selection:bg-blue-500 selection:text-white">
 
-  <!-- Top Navigation Header -->
+  <!-- Header -->
   <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-3 py-3 mb-6">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -50,7 +50,7 @@
       <!-- Control Buttons -->
       <div class="flex items-center gap-1.5">
         <!-- Test Notification Button -->
-        <button onclick="testNotification()" class="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition flex items-center gap-1 text-xs font-medium border border-amber-500/30">
+        <button onclick="testNotification()" class="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition flex items-center gap-1 text-xs font-medium border border-amber-500/30 active:scale-95">
           <i data-lucide="send" class="w-3.5 h-3.5"></i>
           <span class="text-[11px]">Thử TB</span>
         </button>
@@ -110,7 +110,7 @@
         <div class="flex gap-2">
           <input type="datetime-local" id="dueAt" required 
                  class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition">
-          <button type="submit" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition active:scale-95 flex items-center gap-1">
+          <button type="submit" id="submitBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition active:scale-95 flex items-center gap-1">
             <i data-lucide="check" class="w-4 h-4"></i> Lưu
           </button>
         </div>
@@ -147,11 +147,18 @@
     let soundEnabled = false;
     let audioCtx = null;
     let notifiedTasks = new Set();
+    let swRegistration = null;
 
+    // Đăng ký Service Worker với đường dẫn tương đối ./sw.js
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker đã đăng ký!');
-      });
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => {
+          swRegistration = reg;
+          console.log('Service Worker đã kết nối thành công:', reg);
+        })
+        .catch((err) => {
+          console.error('Lỗi đăng ký Service Worker:', err);
+        });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -161,7 +168,7 @@
       setDefaultDateTime();
       checkNotificationStatus();
       loadTasks();
-      setInterval(loadTasks, 3000); // Kiểm tra mỗi 3 giây
+      setInterval(loadTasks, 4000);
     });
 
     function updateClock() {
@@ -190,23 +197,25 @@
 
     async function requestNotificationPermission() {
       if (!('Notification' in window)) {
-        alert('Trình duyệt không hỗ trợ thông báo hệ thống.');
+        alert('Điện thoại/trình duyệt này không hỗ trợ thông báo đẩy.');
         return;
       }
+      
       const permission = await Notification.requestPermission();
       checkNotificationStatus();
+
       if (permission === 'granted') {
         testNotification();
       } else {
-        alert('Bạn đã từ chối quyền thông báo. Hãy bật lại trong Cài đặt Chrome của Android.');
+        alert('Quyền thông báo bị từ chối. Hãy bật lại trong Cài đặt Chrome của Android.');
       }
     }
 
-    function testNotification() {
+    async function testNotification() {
       if (!('Notification' in window) || Notification.permission !== 'granted') {
-        requestNotificationPermission();
+        await requestNotificationPermission();
       } else {
-        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo Android đang hoạt động rất tốt!', 'test_' + Date.now());
+        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo Android đã hoạt động thành công!', 'test_' + Date.now());
       }
     }
 
@@ -228,8 +237,15 @@
       soundEnabled = !soundEnabled;
       const btn = document.getElementById('soundToggleBtn');
       const icon = document.getElementById('soundIcon');
+      
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
       if (soundEnabled) {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         btn.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
         icon.setAttribute('data-lucide', 'volume-2');
         playChime();
@@ -243,26 +259,28 @@
     function playChime() {
       if (!soundEnabled || !audioCtx) return;
       try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
+        osc.stop(audioCtx.currentTime + 0.6);
       } catch (e) {}
     }
 
     async function sendSystemNotification(title, body, tag) {
       if ('Notification' in window && Notification.permission === 'granted') {
         try {
-          if ('serviceWorker' in navigator) {
+          if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
             const reg = await navigator.serviceWorker.ready;
             await reg.showNotification(title, {
               body: body,
+              icon: './favicon.ico',
               vibrate: [300, 100, 300],
               tag: tag || 'task-alarm',
               renotify: true
@@ -272,6 +290,7 @@
           }
         } catch (e) {
           console.error("Lỗi gửi thông báo:", e);
+          new Notification(title, { body });
         }
       }
     }
@@ -381,39 +400,60 @@
       lucide.createIcons();
     }
 
+    // Xử lý tạo công việc mới - Đã sửa triệt để lỗi nhân đôi (Double entry)
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const title = document.getElementById('title').value;
-      const dueInput = document.getElementById('dueAt').value;
-      if (!dueInput) return;
+      const titleInput = document.getElementById('title');
+      const dueInput = document.getElementById('dueAt');
+      const submitBtn = document.getElementById('submitBtn');
 
-      const due_at = new Date(dueInput).toISOString();
+      const title = titleInput.value.trim();
+      const dueAtValue = dueInput.value;
+      if (!title || !dueAtValue) return;
+
+      const due_at = new Date(dueAtValue).toISOString();
+      
+      // Khóa nút tạo để tránh spam bấm liên tục
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-50');
+
+      if (navigator.onLine) {
+        try {
+          // Khi có mạng: gửi trực tiếp lên Server, không tạo task tạm tránh bị lặp
+          await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ title, due_at })
+          });
+          await loadTasks();
+        } catch (err) {
+          // Nếu lỗi mạng giữa chừng thì lưu Offline
+          saveOfflineTask(title, due_at);
+        }
+      } else {
+        // Khi mất mạng: lưu offline duy nhất 1 lần
+        saveOfflineTask(title, due_at);
+      }
+
+      titleInput.value = '';
+      setDefaultDateTime();
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-50');
+    });
+
+    function saveOfflineTask(title, due_at) {
       const newTask = { id: Date.now(), title, due_at, status: 'pending', unsynced: true };
-
       const tasks = getLocalTasks();
       tasks.push(newTask);
       setLocalTasks(tasks);
       renderTaskList();
-
-      document.getElementById('title').value = '';
-      setDefaultDateTime();
-
-      if (navigator.onLine) {
-        await fetch('/api/tasks', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ title, due_at })
-        });
-        loadTasks();
-      }
-    });
+    }
 
     async function snooze(id, minutes) {
       const tasks = getLocalTasks();
       const task = tasks.find(t => t.id === id);
       if (task) {
         task.due_at = new Date(Date.now() + minutes * 60000).toISOString();
-        task.unsynced_action = { action: 'snooze', minutes };
         setLocalTasks(tasks);
         notifiedTasks.delete(`task_${task.id}_${task.due_at}`);
         renderTaskList();
@@ -434,7 +474,6 @@
       const task = tasks.find(t => t.id === id);
       if (task) {
         task.status = 'completed';
-        task.unsynced_action = { action: 'complete' };
         setLocalTasks(tasks);
         renderTaskList();
       }
@@ -453,13 +492,21 @@
       const tasks = getLocalTasks();
       const unsynced = tasks.filter(t => t.unsynced);
 
+      if (unsynced.length === 0) return;
+
       for (let t of unsynced) {
-        await fetch('/api/tasks', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ title: t.title, due_at: t.due_at })
-        });
+        try {
+          await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ title: t.title, due_at: t.due_at })
+          });
+        } catch (e) {}
       }
+
+      // Xóa cờ unsynced sau khi đã đồng bộ xong
+      const updatedTasks = tasks.filter(t => !t.unsynced);
+      setLocalTasks(updatedTasks);
     }
 
     function escapeHtml(str) {
