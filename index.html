@@ -1,91 +1,318 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="dark">
 <head>
-<!-- Khai báo PWA -->
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0f172a">
-
-<!-- Tối ưu cho iPhone/iOS -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TaskAlarm">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3652/3652191.png">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Task Alarm Dashboard</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-red {
+      box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.4);
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
-  <div class="max-w-2xl mx-auto space-y-6">
-    
-    <!-- Quick Add Form -->
-    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
-      <h1 class="text-xl font-bold mb-3 flex items-center gap-2">⏰ Hẹn Giờ Công Việc</h1>
-      <form id="addForm" class="flex flex-col sm:flex-row gap-2">
-        <input type="text" id="title" placeholder="Cần làm gì..." required 
-               class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <input type="datetime-local" id="dueAt" required 
-               class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2 rounded-lg transition">Thêm</button>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-12 antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-4 py-3 mb-6">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i data-lucide="alarm-clock" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-tight leading-tight">Task Alarm</h1>
+          <p id="liveClock" class="text-[11px] text-slate-400 font-medium">--:--:--</p>
+        </div>
+      </div>
+      
+      <!-- Sound Alert Toggle -->
+      <button id="soundToggleBtn" onclick="toggleSound()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1.5 text-xs font-medium border border-slate-700/50">
+        <i id="soundIcon" data-lucide="bell-off" class="w-4 h-4"></i>
+        <span id="soundText">Tắt âm</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 space-y-5">
+
+    <!-- Status Overview Pills -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
+          <i data-lucide="alert-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 block font-medium">Quá hạn</span>
+          <span id="statOverdue" class="text-xl font-bold text-rose-400">0</span>
+        </div>
+      </div>
+
+      <div class="glass-card p-3.5 rounded-2xl flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+          <i data-lucide="clock" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 block font-medium">Đang chờ</span>
+          <span id="statPending" class="text-xl font-bold text-blue-400">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Add Form Card -->
+    <div class="glass-card p-4 rounded-2xl shadow-xl space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-blue-400"></i> Thêm việc cần làm
+        </h2>
+      </div>
+
+      <form id="addForm" class="space-y-3">
+        <div>
+          <input type="text" id="title" placeholder="Ví dụ: Ký hồ sơ trình Sở..." required 
+                 class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition">
+        </div>
+
+        <div class="flex gap-2">
+          <input type="datetime-local" id="dueAt" required 
+                 class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition">
+          <button type="submit" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition active:scale-95 flex items-center gap-1">
+            <i data-lucide="check" class="w-4 h-4"></i> Lưu
+          </button>
+        </div>
+
+        <!-- Quick Time Presets -->
+        <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+          <span class="text-[11px] text-slate-500 whitespace-nowrap">Nhanh:</span>
+          <button type="button" onclick="setQuickTime(15)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+15 Phút</button>
+          <button type="button" onclick="setQuickTime(60)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+1 Giờ</button>
+          <button type="button" onclick="setQuickTime(1440)" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">Sáng mai (8h)</button>
+        </div>
       </form>
     </div>
 
-    <!-- Task List -->
-    <div id="taskList" class="space-y-3">
-      <!-- Tasks dynamically loaded here -->
+    <!-- Task List Section -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i data-lucide="list-todo" class="w-4 h-4 text-slate-400"></i> Danh sách nhắc hẹn
+        </h2>
+        <button onclick="loadTasks()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
+          <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Làm mới
+        </button>
+      </div>
+
+      <div id="taskList" class="space-y-2.5">
+        <!-- Dynamic Tasks Render Here -->
+      </div>
     </div>
-  </div>
+
+  </main>
 
   <script>
-    // Lấy danh sách công việc và Render
-    async function loadTasks() {
-      const res = await fetch('/api/tasks');
-      const tasks = await res.json();
-      const list = document.getElementById('taskList');
-      list.innerHTML = '';
+    let soundEnabled = false;
+    let audioCtx = null;
 
-      const now = new Date().getTime();
+    // Khởi tạo Lucide Icons & Clock
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      updateClock();
+      setInterval(updateClock, 1000);
+      setDefaultDateTime();
+      loadTasks();
+      setInterval(loadTasks, 5000); // Tự động làm mới dữ liệu mỗi 5s
+    });
 
-      tasks.forEach(task => {
-        const due = new Date(task.due_at).getTime();
-        const diffMin = Math.round((due - now) / 60000);
-        const isOverdue = diffMin <= 0;
-
-        const card = document.createElement('div');
-        card.className = `p-4 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-          isOverdue ? 'bg-red-950/50 border-red-500/50 animate-pulse' : 'bg-slate-800 border-slate-700'
-        }`;
-
-        card.innerHTML = `
-          <div>
-            <h3 class="font-semibold text-lg ${isOverdue ? 'text-red-300' : 'text-slate-100'}">${task.title}</h3>
-            <p class="text-xs text-slate-400">Hạn: ${new Date(task.due_at).toLocaleString('vi-VN')} 
-               <span class="font-bold ${isOverdue ? 'text-red-400' : 'text-amber-400'}">
-                 (${isOverdue ? 'Quá hạn ' + Math.abs(diffMin) + ' phút' : 'Còn ' + diffMin + ' phút'})
-               </span>
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="snooze(${task.id}, 15)" class="px-2.5 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-200">+15p</button>
-            <button onclick="snooze(${task.id}, 60)" class="px-2.5 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-200">+1 giờ</button>
-            <button onclick="complete(${task.id})" class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium">Xong</button>
-          </div>
-        `;
-        list.appendChild(card);
-      });
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('liveClock').innerText = now.toLocaleTimeString('vi-VN');
     }
 
-    // Sự kiện thêm task
+    // Đặt mặc định thời gian là 30 phút sau
+    function setDefaultDateTime() {
+      const now = new Date(Date.now() + 30 * 60000);
+      const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+      document.getElementById('dueAt').value = isoString;
+    }
+
+    function setQuickTime(minutes) {
+      let target;
+      if (minutes === 1440) {
+        // 8:00 sáng mai
+        target = new Date();
+        target.setDate(target.getDate() + 1);
+        target.setHours(8, 0, 0, 0);
+      } else {
+        target = new Date(Date.now() + minutes * 60000);
+      }
+      const localISO = new Date(target.getTime() - (target.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+      document.getElementById('dueAt').value = localISO;
+    }
+
+    // Bật/Tắt âm thanh thông báo bằng Web Audio API
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('soundToggleBtn');
+      const text = document.getElementById('soundText');
+      
+      if (soundEnabled) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        btn.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
+        text.innerText = 'Bật âm';
+        playChime(); // Phát thử 1 tiếng
+      } else {
+        btn.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
+        text.innerText = 'Tắt âm';
+      }
+      lucide.createIcons();
+    }
+
+    function playChime() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Nốt A5
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      } catch (e) {}
+    }
+
+    // Tải và hiển thị danh sách công việc
+    async function loadTasks() {
+      try {
+        const res = await fetch('/api/tasks');
+        if (!res.ok) return;
+        const tasks = await res.json();
+        
+        const list = document.getElementById('taskList');
+        list.innerHTML = '';
+
+        const now = new Date().getTime();
+        let overdueCount = 0;
+        let pendingCount = 0;
+        let hasOverdueAlert = false;
+
+        if (tasks.length === 0) {
+          list.innerHTML = `
+            <div class="glass-card p-8 rounded-2xl text-center space-y-2">
+              <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
+              <p class="text-xs text-slate-400">Không có công việc nào cần xử lý!</p>
+            </div>`;
+          lucide.createIcons();
+          document.getElementById('statOverdue').innerText = '0';
+          document.getElementById('statPending').innerText = '0';
+          return;
+        }
+
+        tasks.forEach(task => {
+          const due = new Date(task.due_at).getTime();
+          const diffMin = Math.round((due - now) / 60000);
+          const isOverdue = diffMin <= 0;
+
+          if (isOverdue) {
+            overdueCount++;
+            hasOverdueAlert = true;
+          } else {
+            pendingCount++;
+          }
+
+          const card = document.createElement('div');
+          card.className = `glass-card p-3.5 rounded-2xl border transition-all duration-300 space-y-2.5 ${
+            isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
+          }`;
+
+          const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
+            hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+          });
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div class="space-y-1">
+                <h3 class="text-sm font-semibold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(task.title)}</h3>
+                <div class="flex items-center gap-2 text-[11px]">
+                  <span class="text-slate-400 flex items-center gap-1">
+                    <i data-lucide="calendar" class="w-3 h-3"></i> ${formattedTime}
+                  </span>
+                  <span class="px-2 py-0.5 rounded-md font-medium ${
+                    isOverdue 
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse' 
+                      : (diffMin <= 15 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400')
+                  }">
+                    ${isOverdue ? `Quá hạn ${Math.abs(diffMin)} phút` : `Còn ${diffMin} phút`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons Bar -->
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
+              <div class="flex items-center gap-1">
+                <button onclick="snooze(${task.id}, 15)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+15p</button>
+                <button onclick="snooze(${task.id}, 60)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+1h</button>
+              </div>
+              <button onclick="complete(${task.id})" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold transition flex items-center gap-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i> Xong
+              </button>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+
+        document.getElementById('statOverdue').innerText = overdueCount;
+        document.getElementById('statPending').innerText = pendingCount;
+        lucide.createIcons();
+
+        if (hasOverdueAlert) playChime();
+
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Thêm công việc mới
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('title').value;
-      const due_at = new Date(document.getElementById('dueAt').value).toISOString();
+      const dueInput = document.getElementById('dueAt').value;
+      if (!dueInput) return;
+
+      const due_at = new Date(dueInput).toISOString();
+
       await fetch('/api/tasks', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ title, due_at })
       });
+
       document.getElementById('title').value = '';
+      setDefaultDateTime();
       loadTasks();
     });
 
@@ -107,9 +334,9 @@
       loadTasks();
     }
 
-    // Tự động làm mới giao diện mỗi 10 giây để đếm ngược realtime
-    setInterval(loadTasks, 10000);
-    loadTasks();
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
   </script>
 </body>
 </html>
