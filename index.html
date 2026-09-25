@@ -35,30 +35,34 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-12 antialiased selection:bg-blue-500 selection:text-white">
 
   <!-- Top Navigation Header -->
-  <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-4 py-3 mb-6">
+  <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-3 py-3 mb-6">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <i data-lucide="alarm-clock" class="w-5 h-5 text-white"></i>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i data-lucide="alarm-clock" class="w-4 h-4 text-white"></i>
         </div>
         <div>
-          <h1 class="font-bold text-base tracking-tight leading-tight">Task Alarm</h1>
-          <p id="liveClock" class="text-[11px] text-slate-400 font-medium">--:--:--</p>
+          <h1 class="font-bold text-sm tracking-tight leading-tight">Task Alarm</h1>
+          <p id="liveClock" class="text-[10px] text-slate-400 font-medium">--:--:--</p>
         </div>
       </div>
       
       <!-- Control Buttons -->
       <div class="flex items-center gap-1.5">
+        <!-- Test Notification Button -->
+        <button onclick="testNotification()" class="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition flex items-center gap-1 text-xs font-medium border border-amber-500/30">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span class="text-[11px]">Thử TB</span>
+        </button>
+
         <!-- Notification Toggle -->
         <button id="notifToggleBtn" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
-          <i id="notifIcon" data-lucide="bell-off" class="w-4 h-4"></i>
-          <span id="notifText" class="hidden sm:inline">Thông báo</span>
+          <i id="notifIcon" data-lucide="bell-off" class="w-3.5 h-3.5"></i>
         </button>
 
         <!-- Sound Alert Toggle -->
         <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
-          <i id="soundIcon" data-lucide="volume-x" class="w-4 h-4"></i>
-          <span id="soundText" class="hidden sm:inline">Âm thanh</span>
+          <i id="soundIcon" data-lucide="volume-x" class="w-3.5 h-3.5"></i>
         </button>
       </div>
     </div>
@@ -142,12 +146,11 @@
   <script>
     let soundEnabled = false;
     let audioCtx = null;
-    let notifiedTasks = new Set(); // Lưu danh sách các việc đã bắn thông báo để tránh trùng lặp
+    let notifiedTasks = new Set();
 
-    // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker đã đăng ký thành công!');
+        console.log('Service Worker đã đăng ký!');
       });
     }
 
@@ -158,7 +161,7 @@
       setDefaultDateTime();
       checkNotificationStatus();
       loadTasks();
-      setInterval(loadTasks, 5000); // Kiểm tra hạn công việc mỗi 5 giây
+      setInterval(loadTasks, 3000); // Kiểm tra mỗi 3 giây
     });
 
     function updateClock() {
@@ -185,18 +188,25 @@
       document.getElementById('dueAt').value = localISO;
     }
 
-    // Yêu cầu quyền Thông báo Android
     async function requestNotificationPermission() {
       if (!('Notification' in window)) {
-        alert('Trình duyệt của bạn không hỗ trợ thông báo hệ thống.');
+        alert('Trình duyệt không hỗ trợ thông báo hệ thống.');
         return;
       }
-
       const permission = await Notification.requestPermission();
       checkNotificationStatus();
-
       if (permission === 'granted') {
-        sendSystemNotification('Task Alarm', 'Đã bật thông báo hệ thống thành công!', 'welcome');
+        testNotification();
+      } else {
+        alert('Bạn đã từ chối quyền thông báo. Hãy bật lại trong Cài đặt Chrome của Android.');
+      }
+    }
+
+    function testNotification() {
+      if (!('Notification' in window) || Notification.permission !== 'granted') {
+        requestNotificationPermission();
+      } else {
+        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo Android đang hoạt động rất tốt!', 'test_' + Date.now());
       }
     }
 
@@ -214,7 +224,6 @@
       lucide.createIcons();
     }
 
-    // Bật/Tắt âm thanh báo động
     function toggleSound() {
       soundEnabled = !soundEnabled;
       const btn = document.getElementById('soundToggleBtn');
@@ -247,21 +256,22 @@
       } catch (e) {}
     }
 
-    // Bắn thông báo Android
     async function sendSystemNotification(title, body, tag) {
       if ('Notification' in window && Notification.permission === 'granted') {
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          reg.showNotification(title, {
-            body: body,
-            icon: '/manifest.json',
-            vibrate: [200, 100, 200, 100, 200],
-            tag: tag || 'task-alarm',
-            renotify: true,
-            requireInteraction: true
-          });
-        } else {
-          new Notification(title, { body });
+        try {
+          if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            await reg.showNotification(title, {
+              body: body,
+              vibrate: [300, 100, 300],
+              tag: tag || 'task-alarm',
+              renotify: true
+            });
+          } else {
+            new Notification(title, { body });
+          }
+        } catch (e) {
+          console.error("Lỗi gửi thông báo:", e);
         }
       }
     }
@@ -315,13 +325,11 @@
 
         if (isOverdue) {
           overdueCount++;
-          
-          // Tạo key định danh để không phát lặp lại liên tục cho 1 task đã báo rồi
-          const notifKey = `${task.id}_${task.due_at}`;
+          const notifKey = `task_${task.id}_${task.due_at}`;
           if (!notifiedTasks.has(notifKey)) {
             notifiedTasks.add(notifKey);
             playChime();
-            sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${task.title}" đã đến hạn xử lý.`, notifKey);
+            sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${task.title}" đã đến hạn!`, notifKey);
           }
         } else {
           pendingCount++;
@@ -407,9 +415,7 @@
         task.due_at = new Date(Date.now() + minutes * 60000).toISOString();
         task.unsynced_action = { action: 'snooze', minutes };
         setLocalTasks(tasks);
-        
-        // Bỏ key đã báo để khi hết thời gian hoãn (snooze), app sẽ bắn thông báo mới
-        notifiedTasks.delete(`${task.id}_${task.due_at}`);
+        notifiedTasks.delete(`task_${task.id}_${task.due_at}`);
         renderTaskList();
       }
 
