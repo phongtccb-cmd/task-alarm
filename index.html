@@ -40,16 +40,11 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    /* Hiệu ứng xoay kim đồng hồ */
-    .clock-hand {
-      transform-origin: 100px 100px;
-      transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44);
-    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-24 antialiased selection:bg-blue-500 selection:text-white">
 
-  <!-- Header Header Top Bar -->
+  <!-- Header Top Bar -->
   <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 py-3 mb-4">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -84,44 +79,11 @@
   <main class="max-w-md mx-auto px-4">
 
     <!-- TAB 1: CÔNG VIỆC GẦN NHẤT -->
-    <div id="tab1Content" class="space-y-5">
+    <div id="tab1Content" class="space-y-4">
       
-      <!-- Đồng hồ Analog mô phỏng ứng dụng Báo thức -->
-      <div class="glass-card p-5 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden glow-blue">
-        <svg width="190" height="190" viewBox="0 0 200 200" class="drop-shadow-2xl">
-          <!-- Mặt đồng hồ -->
-          <circle cx="100" cy="100" r="92" fill="#0f172a" stroke="#334155" stroke-width="4"/>
-          <circle cx="100" cy="100" r="86" fill="none" stroke="#1e293b" stroke-width="2"/>
-          
-          <!-- Vạch giờ -->
-          <g stroke="#64748b" stroke-linecap="round">
-            <line x1="100" y1="18" x2="100" y2="26" stroke-width="3"/>
-            <line x1="100" y1="174" x2="100" y2="182" stroke-width="3"/>
-            <line x1="18" y1="100" x2="26" y2="100" stroke-width="3"/>
-            <line x1="174" y1="100" x2="182" y2="100" stroke-width="3"/>
-            
-            <line x1="141" y1="29" x2="137" y2="36" stroke-width="2"/>
-            <line x1="171" y1="59" x2="164" y2="63" stroke-width="2"/>
-            <line x1="171" y1="141" x2="164" y2="137" stroke-width="2"/>
-            <line x1="141" y1="171" x2="137" y2="164" stroke-width="2"/>
-            <line x1="59" y1="171" x2="63" y2="164" stroke-width="2"/>
-            <line x1="29" y1="141" x2="36" y2="137" stroke-width="2"/>
-            <line x1="29" y1="59" x2="36" y2="63" stroke-width="2"/>
-            <line x1="59" y1="29" x2="63" y2="36" stroke-width="2"/>
-          </g>
-
-          <!-- Kim giờ -->
-          <line id="hourHand" x1="100" y1="100" x2="100" y2="55" stroke="#f8fafc" stroke-width="5" stroke-linecap="round" class="clock-hand"/>
-          <!-- Kim phút -->
-          <line id="minuteHand" x1="100" y1="100" x2="100" y2="35" stroke="#cbd5e1" stroke-width="3.5" stroke-linecap="round" class="clock-hand"/>
-          <!-- Kim giây -->
-          <line id="secondHand" x1="100" y1="100" x2="100" y2="28" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" class="clock-hand"/>
-          <!-- Tâm đồng hồ -->
-          <circle cx="100" cy="100" r="5" fill="#3b82f6" stroke="#f8fafc" stroke-width="2"/>
-        </svg>
-
-        <!-- Dòng đếm ngược/Thông báo hạn công việc -->
-        <div id="countdownText" class="mt-4 text-center font-semibold text-sm text-blue-400 min-h-[24px]">
+      <!-- Khung đếm ngược / Trạng thái tổng quan ngắn -->
+      <div class="glass-card p-4 rounded-2xl glow-blue text-center">
+        <div id="countdownText" class="font-semibold text-sm text-blue-400 min-h-[20px]">
           Đang tải thông tin...
         </div>
       </div>
@@ -217,15 +179,15 @@
     <div class="max-w-md mx-auto flex items-center justify-around">
       
       <!-- Tab 1: Công việc gần nhất -->
-      <button id="navTab1" onclick="switchTab('tab1')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-blue-400 transition">
+      <button id="navTab1" onclick="switchTab('tab1')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-blue-400 transition font-semibold">
         <i data-lucide="alarm-clock" class="w-5 h-5"></i>
-        <span class="text-[11px] font-semibold">Gần nhất</span>
+        <span class="text-[11px]">Gần nhất</span>
       </button>
 
       <!-- Tab 2: Danh mục công việc -->
-      <button id="navTab2" onclick="switchTab('tab2')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-slate-400 transition hover:text-slate-200">
+      <button id="navTab2" onclick="switchTab('tab2')" class="flex flex-col items-center gap-1 py-1 px-5 rounded-2xl text-slate-400 transition hover:text-slate-200 font-medium">
         <i data-lucide="list-checks" class="w-5 h-5"></i>
-        <span class="text-[11px] font-medium">Danh mục</span>
+        <span class="text-[11px]">Danh mục</span>
       </button>
 
     </div>
@@ -237,7 +199,6 @@
     let notifiedTasks = new Set();
     let swRegistration = null;
     let isSubmitting = false;
-    let currentTab = 'tab1';
 
     // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
@@ -259,29 +220,11 @@
 
     function updateClock() {
       const now = new Date();
-      document.getElementById('liveClockText').innerText = now.toLocaleTimeString('vi-VN');
-
-      // Xoay kim đồng hồ Analog
-      const seconds = now.getSeconds();
-      const minutes = now.getMinutes();
-      const hours = now.getHours() % 12;
-
-      const secDeg = seconds * 6;
-      const minDeg = (minutes * 6) + (seconds * 0.1);
-      const hourDeg = (hours * 30) + (minutes * 0.5);
-
-      const secHand = document.getElementById('secondHand');
-      const minHand = document.getElementById('minuteHand');
-      const hrHand = document.getElementById('hourHand');
-
-      if (secHand) secHand.setAttribute('transform', `rotate(${secDeg} 100 100)`);
-      if (minHand) minHand.setAttribute('transform', `rotate(${minDeg} 100 100)`);
-      if (hrHand) hrHand.setAttribute('transform', `rotate(${hourDeg} 100 100)`);
+      const clockElem = document.getElementById('liveClockText');
+      if (clockElem) clockElem.innerText = now.toLocaleTimeString('vi-VN');
     }
 
-    // Chuyển Đổi Tab
     function switchTab(tab) {
-      currentTab = tab;
       const t1Content = document.getElementById('tab1Content');
       const t2Content = document.getElementById('tab2Content');
       const nav1 = document.getElementById('navTab1');
@@ -484,7 +427,7 @@
       const diffMin = Math.round((due - now) / 60000);
       const isOverdue = diffMin <= 0;
 
-      // Cập nhật dòng đếm ngược trên đĩa đồng hồ
+      // Cập nhật dòng đếm ngược
       if (isOverdue) {
         countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${Math.abs(diffMin)} phút!</span>`;
       } else {
@@ -496,7 +439,7 @@
         countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeStr}</strong></span>`;
       }
 
-      // Kích hoạt thông báo đẩy nếu chạm mốc
+      // Kích hoạt thông báo đẩy
       if (isOverdue) {
         const notifKey = `task_${nearestTask.id}_${nearestTask.due_at}`;
         if (!notifiedTasks.has(notifKey)) {
@@ -615,7 +558,7 @@
       lucide.createIcons();
     }
 
-    // Xử lý Submit Form Tab 1
+    // Xử lý Form Submit Tab 1
     document.getElementById('addFormTab1').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (isSubmitting) return;
