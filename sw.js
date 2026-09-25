@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-alarm-v2';
+const CACHE_NAME = 'task-alarm-v3';
 
 // Danh sách tài nguyên cần lưu để dùng Offline
 const ASSETS_TO_CACHE = [
@@ -10,15 +10,13 @@ const ASSETS_TO_CACHE = [
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap'
 ];
 
-// 1. Cài đặt Service Worker (Bỏ qua file lỗi, không làm dừng SW)
+// 1. Cài đặt Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      console.log('[SW] Đang lưu cache...');
-      // Dùng Promise.allSettled để nếu 1 file lỗi thì các file còn lại vẫn được lưu bình thường
       await Promise.allSettled(
         ASSETS_TO_CACHE.map(url => 
-          cache.add(url).catch(err => console.warn('[SW] Không thể lưu file:', url, err))
+          cache.add(url).catch(err => console.warn('[SW] Bỏ qua file lỗi:', url, err))
         )
       );
     })
@@ -42,11 +40,10 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Xử lý yêu cầu khi Offline
+// 3. Xử lý Offline Request
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Nếu là API Cloudflare Functions: Cho phép đi qua hoặc trả về cờ offline
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -58,7 +55,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Đối với trang web và giao diện: Ưu tiên lấy từ Cache trước
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -71,11 +67,29 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Khi mất mạng hoàn toàn và truy cập lại trang gốc
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html') || caches.match('./');
         }
       });
+    })
+  );
+});
+
+// 4. Xử lý khi bấm vào Thông báo trên màn hình Android
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close(); // Đóng thanh thông báo
+  
+  // Mở lại ứng dụng hoặc chuyển tới tab ứng dụng đang chạy
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (let client of clientList) {
+        if (client.url.includes('/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
     })
   );
 });
