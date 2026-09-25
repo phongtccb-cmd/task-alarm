@@ -47,11 +47,20 @@
         </div>
       </div>
       
-      <!-- Sound Alert Toggle -->
-      <button id="soundToggleBtn" onclick="toggleSound()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1.5 text-xs font-medium border border-slate-700/50">
-        <i id="soundIcon" data-lucide="bell-off" class="w-4 h-4"></i>
-        <span id="soundText">Tắt âm</span>
-      </button>
+      <!-- Control Buttons -->
+      <div class="flex items-center gap-1.5">
+        <!-- Notification Toggle -->
+        <button id="notifToggleBtn" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
+          <i id="notifIcon" data-lucide="bell-off" class="w-4 h-4"></i>
+          <span id="notifText" class="hidden sm:inline">Thông báo</span>
+        </button>
+
+        <!-- Sound Alert Toggle -->
+        <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
+          <i id="soundIcon" data-lucide="volume-x" class="w-4 h-4"></i>
+          <span id="soundText" class="hidden sm:inline">Âm thanh</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -133,33 +142,23 @@
   <script>
     let soundEnabled = false;
     let audioCtx = null;
-    let isOnline = navigator.onLine;
+    let notifiedTasks = new Set(); // Lưu danh sách các việc đã bắn thông báo để tránh trùng lặp
 
-    // Đăng ký Service Worker cho PWA Offline
+    // Đăng ký Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(() => {
         console.log('Service Worker đã đăng ký thành công!');
       });
     }
 
-    // Khởi tạo giao diện
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       updateClock();
       setInterval(updateClock, 1000);
       setDefaultDateTime();
+      checkNotificationStatus();
       loadTasks();
-      setInterval(loadTasks, 5000);
-
-      // Lắng nghe trạng thái Mạng
-      window.addEventListener('online', () => {
-        isOnline = true;
-        syncOfflineData(); // Đồng bộ ngay khi có mạng
-      });
-      window.addEventListener('offline', () => {
-        isOnline = false;
-        renderTaskList();
-      });
+      setInterval(loadTasks, 5000); // Kiểm tra hạn công việc mỗi 5 giây
     });
 
     function updateClock() {
@@ -186,18 +185,48 @@
       document.getElementById('dueAt').value = localISO;
     }
 
+    // Yêu cầu quyền Thông báo Android
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) {
+        alert('Trình duyệt của bạn không hỗ trợ thông báo hệ thống.');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      checkNotificationStatus();
+
+      if (permission === 'granted') {
+        sendSystemNotification('Task Alarm', 'Đã bật thông báo hệ thống thành công!', 'welcome');
+      }
+    }
+
+    function checkNotificationStatus() {
+      const btn = document.getElementById('notifToggleBtn');
+      const icon = document.getElementById('notifIcon');
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        btn.classList.add('bg-emerald-600/20', 'text-emerald-400', 'border-emerald-500/40');
+        icon.setAttribute('data-lucide', 'bell');
+      } else {
+        btn.classList.remove('bg-emerald-600/20', 'text-emerald-400', 'border-emerald-500/40');
+        icon.setAttribute('data-lucide', 'bell-off');
+      }
+      lucide.createIcons();
+    }
+
+    // Bật/Tắt âm thanh báo động
     function toggleSound() {
       soundEnabled = !soundEnabled;
       const btn = document.getElementById('soundToggleBtn');
-      const text = document.getElementById('soundText');
+      const icon = document.getElementById('soundIcon');
       if (soundEnabled) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         btn.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
-        text.innerText = 'Bật âm';
+        icon.setAttribute('data-lucide', 'volume-2');
         playChime();
       } else {
         btn.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
-        text.innerText = 'Tắt âm';
+        icon.setAttribute('data-lucide', 'volume-x');
       }
       lucide.createIcons();
     }
@@ -218,7 +247,25 @@
       } catch (e) {}
     }
 
-    // Quản lý Local Storage
+    // Bắn thông báo Android
+    async function sendSystemNotification(title, body, tag) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          reg.showNotification(title, {
+            body: body,
+            icon: '/manifest.json',
+            vibrate: [200, 100, 200, 100, 200],
+            tag: tag || 'task-alarm',
+            renotify: true,
+            requireInteraction: true
+          });
+        } else {
+          new Notification(title, { body });
+        }
+      }
+    }
+
     function getLocalTasks() {
       return JSON.parse(localStorage.getItem('tasks_data') || '[]');
     }
@@ -226,7 +273,6 @@
       localStorage.setItem('tasks_data', JSON.stringify(tasks));
     }
 
-    // Tải danh sách công việc
     async function loadTasks() {
       if (navigator.onLine) {
         try {
@@ -236,14 +282,11 @@
             const tasks = await res.json();
             setLocalTasks(tasks);
           }
-        } catch (e) {
-          console.log("Không kết nối được server, dùng dữ liệu offline.");
-        }
+        } catch (e) {}
       }
       renderTaskList();
     }
 
-    // Hiển thị dữ liệu từ Local Storage
     function renderTaskList() {
       const tasks = getLocalTasks().filter(t => t.status === 'pending');
       const list = document.getElementById('taskList');
@@ -252,7 +295,6 @@
       const now = new Date().getTime();
       let overdueCount = 0;
       let pendingCount = 0;
-      let hasOverdueAlert = false;
 
       if (tasks.length === 0) {
         list.innerHTML = `
@@ -273,7 +315,14 @@
 
         if (isOverdue) {
           overdueCount++;
-          hasOverdueAlert = true;
+          
+          // Tạo key định danh để không phát lặp lại liên tục cho 1 task đã báo rồi
+          const notifKey = `${task.id}_${task.due_at}`;
+          if (!notifiedTasks.has(notifKey)) {
+            notifiedTasks.add(notifKey);
+            playChime();
+            sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${task.title}" đã đến hạn xử lý.`, notifKey);
+          }
         } else {
           pendingCount++;
         }
@@ -322,11 +371,8 @@
       document.getElementById('statOverdue').innerText = overdueCount;
       document.getElementById('statPending').innerText = pendingCount;
       lucide.createIcons();
-
-      if (hasOverdueAlert) playChime();
     }
 
-    // Thêm công việc
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('title').value;
@@ -334,9 +380,7 @@
       if (!dueInput) return;
 
       const due_at = new Date(dueInput).toISOString();
-      const tempId = Date.now();
-
-      const newTask = { id: tempId, title, due_at, status: 'pending', unsynced: true };
+      const newTask = { id: Date.now(), title, due_at, status: 'pending', unsynced: true };
 
       const tasks = getLocalTasks();
       tasks.push(newTask);
@@ -363,6 +407,9 @@
         task.due_at = new Date(Date.now() + minutes * 60000).toISOString();
         task.unsynced_action = { action: 'snooze', minutes };
         setLocalTasks(tasks);
+        
+        // Bỏ key đã báo để khi hết thời gian hoãn (snooze), app sẽ bắn thông báo mới
+        notifiedTasks.delete(`${task.id}_${task.due_at}`);
         renderTaskList();
       }
 
@@ -396,7 +443,6 @@
       }
     }
 
-    // Đồng bộ dữ liệu Offline lên Cloudflare khi có lại mạng
     async function syncOfflineData() {
       const tasks = getLocalTasks();
       const unsynced = tasks.filter(t => t.unsynced);
