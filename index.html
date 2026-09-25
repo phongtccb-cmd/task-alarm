@@ -133,15 +133,33 @@
   <script>
     let soundEnabled = false;
     let audioCtx = null;
+    let isOnline = navigator.onLine;
 
-    // Khởi tạo Lucide Icons & Clock
+    // Đăng ký Service Worker cho PWA Offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('Service Worker đã đăng ký thành công!');
+      });
+    }
+
+    // Khởi tạo giao diện
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       updateClock();
       setInterval(updateClock, 1000);
       setDefaultDateTime();
       loadTasks();
-      setInterval(loadTasks, 5000); // Tự động làm mới dữ liệu mỗi 5s
+      setInterval(loadTasks, 5000);
+
+      // Lắng nghe trạng thái Mạng
+      window.addEventListener('online', () => {
+        isOnline = true;
+        syncOfflineData(); // Đồng bộ ngay khi có mạng
+      });
+      window.addEventListener('offline', () => {
+        isOnline = false;
+        renderTaskList();
+      });
     });
 
     function updateClock() {
@@ -149,7 +167,6 @@
       document.getElementById('liveClock').innerText = now.toLocaleTimeString('vi-VN');
     }
 
-    // Đặt mặc định thời gian là 30 phút sau
     function setDefaultDateTime() {
       const now = new Date(Date.now() + 30 * 60000);
       const isoString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
@@ -159,7 +176,6 @@
     function setQuickTime(minutes) {
       let target;
       if (minutes === 1440) {
-        // 8:00 sáng mai
         target = new Date();
         target.setDate(target.getDate() + 1);
         target.setHours(8, 0, 0, 0);
@@ -170,17 +186,15 @@
       document.getElementById('dueAt').value = localISO;
     }
 
-    // Bật/Tắt âm thanh thông báo bằng Web Audio API
     function toggleSound() {
       soundEnabled = !soundEnabled;
       const btn = document.getElementById('soundToggleBtn');
       const text = document.getElementById('soundText');
-      
       if (soundEnabled) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         btn.classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
         text.innerText = 'Bật âm';
-        playChime(); // Phát thử 1 tiếng
+        playChime();
       } else {
         btn.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
         text.innerText = 'Tắt âm';
@@ -194,7 +208,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Nốt A5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
         osc.connect(gain);
@@ -204,99 +218,115 @@
       } catch (e) {}
     }
 
-    // Tải và hiển thị danh sách công việc
-    async function loadTasks() {
-      try {
-        const res = await fetch('/api/tasks');
-        if (!res.ok) return;
-        const tasks = await res.json();
-        
-        const list = document.getElementById('taskList');
-        list.innerHTML = '';
-
-        const now = new Date().getTime();
-        let overdueCount = 0;
-        let pendingCount = 0;
-        let hasOverdueAlert = false;
-
-        if (tasks.length === 0) {
-          list.innerHTML = `
-            <div class="glass-card p-8 rounded-2xl text-center space-y-2">
-              <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
-              <p class="text-xs text-slate-400">Không có công việc nào cần xử lý!</p>
-            </div>`;
-          lucide.createIcons();
-          document.getElementById('statOverdue').innerText = '0';
-          document.getElementById('statPending').innerText = '0';
-          return;
-        }
-
-        tasks.forEach(task => {
-          const due = new Date(task.due_at).getTime();
-          const diffMin = Math.round((due - now) / 60000);
-          const isOverdue = diffMin <= 0;
-
-          if (isOverdue) {
-            overdueCount++;
-            hasOverdueAlert = true;
-          } else {
-            pendingCount++;
-          }
-
-          const card = document.createElement('div');
-          card.className = `glass-card p-3.5 rounded-2xl border transition-all duration-300 space-y-2.5 ${
-            isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
-          }`;
-
-          const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
-            hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
-          });
-
-          card.innerHTML = `
-            <div class="flex items-start justify-between gap-2">
-              <div class="space-y-1">
-                <h3 class="text-sm font-semibold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(task.title)}</h3>
-                <div class="flex items-center gap-2 text-[11px]">
-                  <span class="text-slate-400 flex items-center gap-1">
-                    <i data-lucide="calendar" class="w-3 h-3"></i> ${formattedTime}
-                  </span>
-                  <span class="px-2 py-0.5 rounded-md font-medium ${
-                    isOverdue 
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse' 
-                      : (diffMin <= 15 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400')
-                  }">
-                    ${isOverdue ? `Quá hạn ${Math.abs(diffMin)} phút` : `Còn ${diffMin} phút`}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Buttons Bar -->
-            <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
-              <div class="flex items-center gap-1">
-                <button onclick="snooze(${task.id}, 15)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+15p</button>
-                <button onclick="snooze(${task.id}, 60)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+1h</button>
-              </div>
-              <button onclick="complete(${task.id})" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold transition flex items-center gap-1">
-                <i data-lucide="check" class="w-3.5 h-3.5"></i> Xong
-              </button>
-            </div>
-          `;
-          list.appendChild(card);
-        });
-
-        document.getElementById('statOverdue').innerText = overdueCount;
-        document.getElementById('statPending').innerText = pendingCount;
-        lucide.createIcons();
-
-        if (hasOverdueAlert) playChime();
-
-      } catch (e) {
-        console.error(e);
-      }
+    // Quản lý Local Storage
+    function getLocalTasks() {
+      return JSON.parse(localStorage.getItem('tasks_data') || '[]');
+    }
+    function setLocalTasks(tasks) {
+      localStorage.setItem('tasks_data', JSON.stringify(tasks));
     }
 
-    // Thêm công việc mới
+    // Tải danh sách công việc
+    async function loadTasks() {
+      if (navigator.onLine) {
+        try {
+          await syncOfflineData();
+          const res = await fetch('/api/tasks');
+          if (res.ok) {
+            const tasks = await res.json();
+            setLocalTasks(tasks);
+          }
+        } catch (e) {
+          console.log("Không kết nối được server, dùng dữ liệu offline.");
+        }
+      }
+      renderTaskList();
+    }
+
+    // Hiển thị dữ liệu từ Local Storage
+    function renderTaskList() {
+      const tasks = getLocalTasks().filter(t => t.status === 'pending');
+      const list = document.getElementById('taskList');
+      list.innerHTML = '';
+
+      const now = new Date().getTime();
+      let overdueCount = 0;
+      let pendingCount = 0;
+      let hasOverdueAlert = false;
+
+      if (tasks.length === 0) {
+        list.innerHTML = `
+          <div class="glass-card p-8 rounded-2xl text-center space-y-2">
+            <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
+            <p class="text-xs text-slate-400">Không có công việc nào cần xử lý!</p>
+          </div>`;
+        lucide.createIcons();
+        document.getElementById('statOverdue').innerText = '0';
+        document.getElementById('statPending').innerText = '0';
+        return;
+      }
+
+      tasks.forEach(task => {
+        const due = new Date(task.due_at).getTime();
+        const diffMin = Math.round((due - now) / 60000);
+        const isOverdue = diffMin <= 0;
+
+        if (isOverdue) {
+          overdueCount++;
+          hasOverdueAlert = true;
+        } else {
+          pendingCount++;
+        }
+
+        const card = document.createElement('div');
+        card.className = `glass-card p-3.5 rounded-2xl border transition-all duration-300 space-y-2.5 ${
+          isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
+        }`;
+
+        const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
+          hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+        });
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="space-y-1">
+              <h3 class="text-sm font-semibold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(task.title)}</h3>
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="text-slate-400 flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3 h-3"></i> ${formattedTime}
+                </span>
+                <span class="px-2 py-0.5 rounded-md font-medium ${
+                  isOverdue 
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse' 
+                    : (diffMin <= 15 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400')
+                }">
+                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)} phút` : `Còn ${diffMin} phút`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 border-t border-slate-800/60">
+            <div class="flex items-center gap-1">
+              <button onclick="snooze(${task.id}, 15)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+15p</button>
+              <button onclick="snooze(${task.id}, 60)" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition">+1h</button>
+            </div>
+            <button onclick="complete(${task.id})" class="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold transition flex items-center gap-1">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i> Xong
+            </button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      document.getElementById('statOverdue').innerText = overdueCount;
+      document.getElementById('statPending').innerText = pendingCount;
+      lucide.createIcons();
+
+      if (hasOverdueAlert) playChime();
+    }
+
+    // Thêm công việc
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('title').value;
@@ -304,34 +334,80 @@
       if (!dueInput) return;
 
       const due_at = new Date(dueInput).toISOString();
+      const tempId = Date.now();
 
-      await fetch('/api/tasks', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ title, due_at })
-      });
+      const newTask = { id: tempId, title, due_at, status: 'pending', unsynced: true };
+
+      const tasks = getLocalTasks();
+      tasks.push(newTask);
+      setLocalTasks(tasks);
+      renderTaskList();
 
       document.getElementById('title').value = '';
       setDefaultDateTime();
-      loadTasks();
+
+      if (navigator.onLine) {
+        await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ title, due_at })
+        });
+        loadTasks();
+      }
     });
 
     async function snooze(id, minutes) {
-      await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, action: 'snooze', minutes })
-      });
-      loadTasks();
+      const tasks = getLocalTasks();
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.due_at = new Date(Date.now() + minutes * 60000).toISOString();
+        task.unsynced_action = { action: 'snooze', minutes };
+        setLocalTasks(tasks);
+        renderTaskList();
+      }
+
+      if (navigator.onLine) {
+        await fetch('/api/tasks', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ id, action: 'snooze', minutes })
+        });
+        loadTasks();
+      }
     }
 
     async function complete(id) {
-      await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id, action: 'complete' })
-      });
-      loadTasks();
+      let tasks = getLocalTasks();
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.status = 'completed';
+        task.unsynced_action = { action: 'complete' };
+        setLocalTasks(tasks);
+        renderTaskList();
+      }
+
+      if (navigator.onLine) {
+        await fetch('/api/tasks', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ id, action: 'complete' })
+        });
+        loadTasks();
+      }
+    }
+
+    // Đồng bộ dữ liệu Offline lên Cloudflare khi có lại mạng
+    async function syncOfflineData() {
+      const tasks = getLocalTasks();
+      const unsynced = tasks.filter(t => t.unsynced);
+
+      for (let t of unsynced) {
+        await fetch('/api/tasks', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ title: t.title, due_at: t.due_at })
+        });
+      }
     }
 
     function escapeHtml(str) {
