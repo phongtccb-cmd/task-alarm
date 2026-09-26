@@ -57,13 +57,8 @@
         </div>
       </div>
       
-      <!-- Quick Controls -->
+      <!-- Quick Controls (Đã xóa nút Thử TB) -->
       <div class="flex items-center gap-1.5">
-        <button onclick="testNotification()" class="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition flex items-center gap-1 text-xs font-medium border border-amber-500/30 active:scale-95">
-          <i data-lucide="send" class="w-3.5 h-3.5"></i>
-          <span class="text-[11px]">Thử TB</span>
-        </button>
-
         <button id="notifToggleBtn" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
           <i id="notifIcon" data-lucide="bell-off" class="w-3.5 h-3.5"></i>
         </button>
@@ -224,6 +219,26 @@
       if (clockElem) clockElem.innerText = now.toLocaleTimeString('vi-VN');
     }
 
+    // Hàm quy đổi thời gian đếm ngược thành Ngày, Giờ, Phút chuẩn xác
+    function formatTimeDiff(dueMs, nowMs) {
+      const diffMs = dueMs - nowMs;
+      const absMs = Math.abs(diffMs);
+
+      const days = Math.floor(absMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((absMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      let parts = [];
+      if (days > 0) parts.push(`${days} ngày`);
+      if (hours > 0) parts.push(`${hours} giờ`);
+      if (mins > 0 || (days === 0 && hours === 0)) parts.push(`${mins} phút`);
+
+      return {
+        isOverdue: diffMs <= 0,
+        timeStr: parts.join(' ')
+      };
+    }
+
     function switchTab(tab) {
       const t1Content = document.getElementById('tab1Content');
       const t2Content = document.getElementById('tab2Content');
@@ -270,14 +285,8 @@
       }
       const permission = await Notification.requestPermission();
       checkNotificationStatus();
-      if (permission === 'granted') testNotification();
-    }
-
-    async function testNotification() {
-      if (!('Notification' in window) || Notification.permission !== 'granted') {
-        await requestNotificationPermission();
-      } else {
-        sendSystemNotification('⏰ Task Alarm Test', 'Thông báo hoạt động hoàn hảo!', 'test_' + Date.now());
+      if (permission === 'granted') {
+        sendSystemNotification('⏰ Task Alarm', 'Đã bật thông báo thành công!', 'welcome_' + Date.now());
       }
     }
 
@@ -422,25 +431,19 @@
         return;
       }
 
-      const nearestTask = tasks[0]; // Task gần nhất
+      const nearestTask = tasks[0];
       const due = new Date(nearestTask.due_at).getTime();
-      const diffMin = Math.round((due - now) / 60000);
-      const isOverdue = diffMin <= 0;
+      const timeInfo = formatTimeDiff(due, now);
 
-      // Cập nhật dòng đếm ngược
-      if (isOverdue) {
-        countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${Math.abs(diffMin)} phút!</span>`;
+      // Cập nhật dòng đếm ngược định dạng Ngày, Giờ, Phút
+      if (timeInfo.isOverdue) {
+        countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${timeInfo.timeStr}!</span>`;
       } else {
-        const hrs = Math.floor(diffMin / 60);
-        const mins = diffMin % 60;
-        let timeStr = "";
-        if (hrs > 0) timeStr += `${hrs} giờ `;
-        timeStr += `${mins} phút`;
-        countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeStr}</strong></span>`;
+        countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeInfo.timeStr}</strong></span>`;
       }
 
       // Kích hoạt thông báo đẩy
-      if (isOverdue) {
+      if (timeInfo.isOverdue) {
         const notifKey = `task_${nearestTask.id}_${nearestTask.due_at}`;
         if (!notifiedTasks.has(notifKey)) {
           notifiedTasks.add(notifKey);
@@ -455,19 +458,19 @@
 
       nextCardElem.innerHTML = `
         <div class="glass-card p-4 rounded-2xl border transition-all duration-300 space-y-3 ${
-          isOverdue ? 'border-rose-500/60 bg-rose-950/20 glow-red' : 'border-blue-500/40 bg-blue-950/10'
+          timeInfo.isOverdue ? 'border-rose-500/60 bg-rose-950/20 glow-red' : 'border-blue-500/40 bg-blue-950/10'
         }">
           <div class="flex items-start justify-between gap-2">
             <div class="space-y-1">
-              <h3 class="text-base font-bold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(nearestTask.title)}</h3>
+              <h3 class="text-base font-bold text-slate-100 ${timeInfo.isOverdue ? 'text-rose-200' : ''}">${escapeHtml(nearestTask.title)}</h3>
               <div class="flex items-center gap-2 text-xs">
                 <span class="text-slate-400 flex items-center gap-1">
                   <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${formattedTime}
                 </span>
                 <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${
-                  isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  timeInfo.isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                 }">
-                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)}p` : `Còn ${diffMin}p`}
+                  ${timeInfo.isOverdue ? `Quá hạn ${timeInfo.timeStr}` : `Còn ${timeInfo.timeStr}`}
                 </span>
               </div>
             </div>
@@ -479,7 +482,7 @@
               <button onclick="snooze(${nearestTask.id}, 60)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/50 transition">+1h</button>
             </div>
             <button onclick="complete(${nearestTask.id})" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-1">
-              <i data-lucide="check" class="w-4 h-4"></i> Complete
+              <i data-lucide="check" class="w-4 h-4"></i> Xong
             </button>
           </div>
         </div>
@@ -508,10 +511,9 @@
 
       tasks.forEach(task => {
         const due = new Date(task.due_at).getTime();
-        const diffMin = Math.round((due - now) / 60000);
-        const isOverdue = diffMin <= 0;
+        const timeInfo = formatTimeDiff(due, now);
 
-        if (isOverdue) overdueCount++;
+        if (timeInfo.isOverdue) overdueCount++;
         else pendingCount++;
 
         const formattedTime = new Date(task.due_at).toLocaleString('vi-VN', {
@@ -520,21 +522,21 @@
 
         const card = document.createElement('div');
         card.className = `glass-card p-3.5 rounded-2xl border transition-all duration-300 space-y-2.5 ${
-          isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
+          timeInfo.isOverdue ? 'border-rose-500/50 bg-rose-950/20 glow-red' : 'border-slate-800'
         }`;
 
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2">
             <div class="space-y-1">
-              <h3 class="text-sm font-semibold text-slate-100 ${isOverdue ? 'text-rose-200' : ''}">${escapeHtml(task.title)}</h3>
+              <h3 class="text-sm font-semibold text-slate-100 ${timeInfo.isOverdue ? 'text-rose-200' : ''}">${escapeHtml(task.title)}</h3>
               <div class="flex items-center gap-2 text-[11px]">
                 <span class="text-slate-400 flex items-center gap-1">
                   <i data-lucide="calendar" class="w-3 h-3"></i> ${formattedTime}
                 </span>
                 <span class="px-2 py-0.5 rounded-md font-medium ${
-                  isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
+                  timeInfo.isOverdue ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-slate-800 text-slate-400'
                 }">
-                  ${isOverdue ? `Quá hạn ${Math.abs(diffMin)}p` : `Còn ${diffMin}p`}
+                  ${timeInfo.isOverdue ? `Quá hạn ${timeInfo.timeStr}` : `Còn ${timeInfo.timeStr}`}
                 </span>
               </div>
             </div>
