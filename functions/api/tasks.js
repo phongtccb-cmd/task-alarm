@@ -2,7 +2,7 @@
 export async function onRequestGet(context) {
   const { DB } = context.env;
   const { results } = await DB.prepare(
-    "SELECT * FROM tasks WHERE status = 'pending' ORDER BY due_at ASC"
+    "SELECT * FROM tasks WHERE status IN ('pending', 'completed') ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, due_at ASC"
   ).all();
   return Response.json(results);
 }
@@ -69,6 +69,32 @@ export async function onRequestPut(context) {
     }
   } else {
     return Response.json({ error: "Unsupported task action" }, { status: 400 });
+  }
+
+  return Response.json({ success: true });
+}
+
+export async function onRequestDelete(context) {
+  const { DB } = context.env;
+  let payload;
+  try {
+    payload = await context.request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const { id } = payload;
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return Response.json({ error: "A valid task id is required" }, { status: 400 });
+  }
+
+  const result = await DB.prepare("DELETE FROM tasks WHERE id = ?").bind(id).run();
+  if (result.meta.changes === 0) {
+    return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
   return Response.json({ success: true });
