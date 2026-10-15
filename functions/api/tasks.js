@@ -9,21 +9,67 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { DB } = context.env;
-  const { title, due_at } = await context.request.json();
-  await DB.prepare("INSERT INTO tasks (title, due_at) VALUES (?, ?)").bind(title, due_at).run();
+  let payload;
+  try {
+    payload = await context.request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const title = typeof payload.title === "string" ? payload.title.trim() : "";
+  const dueAt = typeof payload.due_at === "string" ? new Date(payload.due_at) : null;
+
+  if (!title || title.length > 300 || !dueAt || !Number.isFinite(dueAt.getTime())) {
+    return Response.json({ error: "A title and valid due_at are required" }, { status: 400 });
+  }
+
+  await DB.prepare("INSERT INTO tasks (title, due_at) VALUES (?, ?)")
+    .bind(title, dueAt.toISOString())
+    .run();
   return Response.json({ success: true });
 }
 
 export async function onRequestPut(context) {
   const { DB } = context.env;
-  const { id, action, minutes } = await context.request.json();
+  let payload;
+  try {
+    payload = await context.request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const { id, action, minutes } = payload;
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return Response.json({ error: "A valid task id is required" }, { status: 400 });
+  }
 
   if (action === 'complete') {
-    await DB.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").bind(id).run();
+    const result = await DB.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").bind(id).run();
+    if (result.meta.changes === 0) {
+      return Response.json({ error: "Task not found" }, { status: 404 });
+    }
   } else if (action === 'snooze') {
+    if (!Number.isSafeInteger(minutes) || minutes < 1 || minutes > 10080) {
+      return Response.json({ error: "Snooze minutes must be between 1 and 10080" }, { status: 400 });
+    }
+
     // Gia hạn thêm số phút dựa trên thời gian hiện tại
     const newDue = new Date(Date.now() + minutes * 60000).toISOString();
-    await DB.prepare("UPDATE tasks SET due_at = ? WHERE id = ?").bind(newDue, id).run();
+    const result = await DB.prepare("UPDATE tasks SET due_at = ? WHERE id = ?").bind(newDue, id).run();
+    if (result.meta.changes === 0) {
+      return Response.json({ error: "Task not found" }, { status: 404 });
+    }
+  } else {
+    return Response.json({ error: "Unsupported task action" }, { status: 400 });
   }
+
   return Response.json({ success: true });
 }
