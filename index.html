@@ -81,20 +81,8 @@
     <!-- TAB 1: CÔNG VIỆC GẦN NHẤT -->
     <div id="tab1Content" class="space-y-4">
       
-      <!-- Khung đếm ngược / Trạng thái tổng quan ngắn -->
-      <div class="glass-card p-4 rounded-2xl glow-blue text-center">
-        <div id="countdownText" class="font-semibold text-sm text-blue-400 min-h-[20px]">
-          Đang tải thông tin...
-        </div>
-      </div>
-
       <!-- Khung Công Việc Gần Nhất -->
       <div class="space-y-2">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between px-1">
-          <span class="flex items-center gap-1.5"><i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Công việc cần làm tiếp theo</span>
-          <span class="text-[10px] text-slate-500 font-normal">Ưu tiên số 1</span>
-        </h2>
-
         <div id="nextTaskCard">
           <!-- Task gần nhất render tại đây -->
         </div>
@@ -120,9 +108,9 @@
 
           <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
             <span class="text-[11px] text-slate-500 whitespace-nowrap">Nhanh:</span>
-            <button type="button" onclick="setQuickTimeTab1(15)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+15 Phút</button>
-            <button type="button" onclick="setQuickTimeTab1(60)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">+1 Giờ</button>
-            <button type="button" onclick="setQuickTimeTab1(1440)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">Sáng mai (8h)</button>
+            <button type="button" onclick="setQuickTimeTab1(180)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">3 giờ</button>
+            <button type="button" onclick="setQuickTimeTab1(360)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">6 giờ</button>
+            <button type="button" onclick="setQuickTimeTab1(1440)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700/40 whitespace-nowrap">Sáng mai 7g</button>
           </div>
         </form>
       </div>
@@ -294,7 +282,7 @@
       if (minutes === 1440) {
         target = new Date();
         target.setDate(target.getDate() + 1);
-        target.setHours(8, 0, 0, 0);
+        target.setHours(7, 0, 0, 0);
       } else {
         target = new Date(Date.now() + minutes * 60000);
       }
@@ -476,11 +464,9 @@
     }
 
     function renderTab1NearestTask(tasks, now) {
-      const countdownElem = document.getElementById('countdownText');
       const nextCardElem = document.getElementById('nextTaskCard');
 
       if (tasks.length === 0) {
-        countdownElem.innerHTML = `<span class="text-slate-400 font-normal">Chưa có công việc nào sắp tới</span>`;
         nextCardElem.innerHTML = `
           <div class="glass-card p-6 rounded-2xl text-center space-y-2">
             <i data-lucide="sparkles" class="w-8 h-8 text-slate-500 mx-auto"></i>
@@ -493,13 +479,6 @@
       const nearestTask = tasks[0];
       const due = new Date(nearestTask.due_at).getTime();
       const timeInfo = formatTimeDiff(due, now);
-
-      // Cập nhật dòng đếm ngược định dạng Ngày, Giờ, Phút
-      if (timeInfo.isOverdue) {
-        countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${timeInfo.timeStr}!</span>`;
-      } else {
-        countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeInfo.timeStr}</strong></span>`;
-      }
 
       const formattedTime = new Date(nearestTask.due_at).toLocaleString('vi-VN', {
         hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
