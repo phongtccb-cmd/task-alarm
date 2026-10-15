@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-alarm-v3';
+const CACHE_NAME = 'task-alarm-v4';
 
 // Danh sách tài nguyên cần lưu để dùng Offline
 const ASSETS_TO_CACHE = [
