@@ -2,7 +2,7 @@
 <html lang="vi" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Task Alarm Dashboard</title>
   
   <!-- PWA Meta Tags -->
@@ -59,11 +59,11 @@
       
       <!-- Quick Controls (Đã xóa nút Thử TB) -->
       <div class="flex items-center gap-1.5">
-        <button id="notifToggleBtn" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
+        <button id="notifToggleBtn" type="button" aria-label="Bật thông báo" title="Bật thông báo khi ứng dụng đang mở" onclick="requestNotificationPermission()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
           <i id="notifIcon" data-lucide="bell-off" class="w-3.5 h-3.5"></i>
         </button>
 
-        <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
+        <button id="soundToggleBtn" type="button" aria-label="Bật âm thanh" title="Bật âm thanh nhắc việc" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 transition flex items-center gap-1 text-xs font-medium border border-slate-700/50">
           <i id="soundIcon" data-lucide="volume-x" class="w-3.5 h-3.5"></i>
         </button>
       </div>
@@ -102,7 +102,7 @@
         </h2>
         
         <form id="addFormTab1" class="space-y-3">
-          <input type="text" id="title1" placeholder="Ví dụ: Họp ban giám đốc..." required 
+          <input type="text" id="title1" placeholder="Ví dụ: Họp ban giám đốc..." maxlength="300" required 
                  class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
           
           <div class="flex gap-2">
@@ -210,7 +210,16 @@
       checkNotificationStatus();
       cleanUpDuplicateTasks();
       loadTasks();
-      setInterval(loadTasks, 3000);
+      setInterval(() => {
+        if (!document.hidden) renderUI();
+      }, 1000);
+      setInterval(() => {
+        if (!document.hidden) loadTasks();
+      }, 30000);
+      window.addEventListener('online', loadTasks);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) loadTasks();
+      });
     });
 
     function updateClock() {
@@ -408,12 +417,35 @@
 
       // Sắp xếp các task theo thời gian hạn chót từ sớm nhất đến muộn nhất
       tasks.sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
+      notifyDueTasks(tasks, now);
 
       // RENDER TAB 1: CÔNG VIỆC GẦN NHẤT
       renderTab1NearestTask(tasks, now);
 
       // RENDER TAB 2: DANH MỤC CÔNG VIỆC
       renderTab2TaskList(tasks, now);
+    }
+
+    function notifyDueTasks(tasks, now) {
+      let hasNewlyDueTask = false;
+
+      for (const task of tasks) {
+        const dueAt = new Date(task.due_at).getTime();
+        if (!Number.isFinite(dueAt) || dueAt > now) continue;
+
+        const notificationKey = `task_${task.id}_${task.due_at}`;
+        if (notifiedTasks.has(notificationKey)) continue;
+
+        notifiedTasks.add(notificationKey);
+        hasNewlyDueTask = true;
+        sendSystemNotification(
+          '⏰ Cảnh báo nhắc hẹn!',
+          `Công việc "${task.title}" đã đến hạn!`,
+          notificationKey
+        );
+      }
+
+      if (hasNewlyDueTask) playChime();
     }
 
     function renderTab1NearestTask(tasks, now) {
@@ -440,16 +472,6 @@
         countdownElem.innerHTML = `<span class="text-rose-400 font-bold animate-pulse">⚠️ Quá hạn ${timeInfo.timeStr}!</span>`;
       } else {
         countdownElem.innerHTML = `<span class="text-blue-400">Sẽ nhắc sau <strong class="text-white">${timeInfo.timeStr}</strong></span>`;
-      }
-
-      // Kích hoạt thông báo đẩy
-      if (timeInfo.isOverdue) {
-        const notifKey = `task_${nearestTask.id}_${nearestTask.due_at}`;
-        if (!notifiedTasks.has(notifKey)) {
-          notifiedTasks.add(notifKey);
-          playChime();
-          sendSystemNotification('⏰ Cảnh báo nhắc hẹn!', `Công việc "${nearestTask.title}" đã đến hạn!`, notifKey);
-        }
       }
 
       const formattedTime = new Date(nearestTask.due_at).toLocaleString('vi-VN', {
